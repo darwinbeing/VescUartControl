@@ -21,11 +21,11 @@ along with this program.If not, see <http://www.gnu.org/licenses/>.
 
 
 //#include <Config.h>
-#include <HardwareSerial.h>
+/* #include <HardwareSerial.h> */
 
-void SetSerialPort(HardwareSerial* _serialPort1, HardwareSerial* _serialPort2, HardwareSerial* _serialPort3, HardwareSerial* _serialPort4);
-void SetSerialPort(HardwareSerial* _serialPort);
-void SetDebugSerialPort(HardwareSerial* _debugSerialPort);
+/* void SetSerialPort(HardwareSerial* _serialPort1, HardwareSerial* _serialPort2, HardwareSerial* _serialPort3, HardwareSerial* _serialPort4); */
+/* void SetSerialPort(HardwareSerial* _serialPort); */
+/* void SetDebugSerialPort(HardwareSerial* _debugSerialPort); */
 
 
 
@@ -59,23 +59,25 @@ If you want to use debug, uncomment DEBUGSERIAL and define a port.*/
 //#endif
 //#endif
 
-#if defined(ARDUINO) && ARDUINO >= 100
-#include "arduino.h"
-#else
-#include "WProgram.h"
-#endif
+/* #if defined(ARDUINO) && ARDUINO >= 100 */
+/* #include "arduino.h" */
+/* #else */
+/* #include "WProgram.h" */
+/* #endif */
 
 #include "datatypes.h"
 #include "local_datatypes.h"
 
 ///SetSerialPort sets the serial to communicate with the VESC
 ///Multiple ports possible
-void SetSerialPort(HardwareSerial*  _serialPort1, HardwareSerial*  _serialPort2, HardwareSerial*  _serialPort3, HardwareSerial*  _serialPort4);
-void SetSerialPort(HardwareSerial* _serialPort);
+/* void SetSerialPort(HardwareSerial*  _serialPort1, HardwareSerial*  _serialPort2, HardwareSerial*  _serialPort3, HardwareSerial*  _serialPort4); */
+/* void SetSerialPort(HardwareSerial* _serialPort); */
 
 ///SetDebugSerialPort sets the serial for debug information
 
-void SetDebugSerialPort(HardwareSerial* _debugSerialPort);
+/* void SetDebugSerialPort(HardwareSerial* _debugSerialPort); */
+
+void SerialPortInit(const char *name);
 
 ///PackSendPayload Packs the payload and sends it over Serial.
 ///Define in a Config.h a SERIAL with the Serial in Arduino Style you want to you
@@ -141,6 +143,9 @@ void VescUartSetNunchukValues(remotePackage& data);
 
 void VescUartSetPosition(float position, int num) ;
 void VescUartSetPosition(float position) ;
+
+void VescUartSetServoPosition(float position, int num);
+void VescUartSetServoPosition(float position);
 
 ///Sends a command to VESC to control the motor duty cycle
 ///@param duty as float with the duty cycle for the motor

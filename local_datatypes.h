@@ -1,6 +1,7 @@
 #ifndef LOCAL_DATATYPES_H_
 #define LOCAL_DATATYPES_H_
 
+#include <stdbool.h>
 // Added by AC to store measured values
 struct bldcMeasure {
 	float tempFetFiltered;
@@ -26,8 +27,8 @@ struct remotePackage {
 
 	int		valXJoy;
 	int		valYJoy;
-	boolean	valUpperButton;
-	boolean	valLowerButton;
+	bool	valUpperButton;
+	bool	valLowerButton;
 
 };
 

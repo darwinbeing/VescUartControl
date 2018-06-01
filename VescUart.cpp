@@ -15,37 +15,69 @@ You should have received a copy of the GNU General Public License
 along with this program.If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <SerialPort.h>
+
+#include <cstring>
+#include <cstdlib>
+#include <iostream>
+#include <unistd.h>
+
 #include "VescUart.h"
 #include "buffer.h"
 #include "crc.h"
 
-static HardwareSerial* serialPort1;
-static HardwareSerial* serialPort2;
-static HardwareSerial* serialPort3;
-static HardwareSerial* serialPort4;
-static HardwareSerial* debugSerialPort = NULL;
+using namespace LibSerial;
+
+// static HardwareSerial* serialPort1;
+// static HardwareSerial* serialPort2;
+// static HardwareSerial* serialPort3;
+// static HardwareSerial* serialPort4;
+// static HardwareSerial* debugSerialPort = NULL;
+
+// Instantiate a SerialPort object.
+static SerialPort serial_port;
 
 bool UnpackPayload(uint8_t* message, int lenMes, uint8_t* payload, int lenPa);
 bool ProcessReadPacket(uint8_t* message, struct bldcMeasure& values, int len);
 
-void SetSerialPort(HardwareSerial*  _serialPort1, HardwareSerial*  _serialPort2, HardwareSerial*  _serialPort3, HardwareSerial*  _serialPort4)
-{
-	serialPort1 = _serialPort1;
-	serialPort2 = _serialPort2;
-	serialPort3 = _serialPort3;
-	serialPort4 = _serialPort4;
-}
+// void SetSerialPort(HardwareSerial*  _serialPort1, HardwareSerial*  _serialPort2, HardwareSerial*  _serialPort3, HardwareSerial*  _serialPort4)
+// {
+// 	serialPort1 = _serialPort1;
+// 	serialPort2 = _serialPort2;
+// 	serialPort3 = _serialPort3;
+// 	serialPort4 = _serialPort4;
+// }
 
-void SetSerialPort(HardwareSerial* _serialPort)
-{
-	SetSerialPort(_serialPort, _serialPort, _serialPort, _serialPort);
-}
+// void SetSerialPort(HardwareSerial* _serialPort)
+// {
+// 	SetSerialPort(_serialPort, _serialPort, _serialPort, _serialPort);
+// }
 
-void SetDebugSerialPort(HardwareSerial * _debugSerialPort)
-{
-	debugSerialPort = _debugSerialPort;
-}
+// void SetDebugSerialPort(HardwareSerial * _debugSerialPort)
+// {
+// 	debugSerialPort = _debugSerialPort;
+// }
 
+void SerialPortInit(const char *name) {
+    // Open the Serial Port at the desired hardware port.
+    // serial_port.Open("/dev/ttyUSB0");
+    serial_port.Open(name);
+
+    // Set the baud rate of the serial port.
+    serial_port.SetBaudRate(BaudRate::BAUD_115200);
+
+    // Set the number of data bits.
+    serial_port.SetCharacterSize(CharacterSize::CHAR_SIZE_8);
+
+    // Turn off hardware flow control.
+    serial_port.SetFlowControl(FlowControl::FLOW_CONTROL_NONE);
+
+    // Disable parity.
+    serial_port.SetParity(Parity::PARITY_NONE);
+
+    // Set the number of stop bits.
+    serial_port.SetStopBits(StopBits::STOP_BITS_1);
+}
 
 //HardwareSerial *serial; ///@param num as integer with the serial port in use (0=Serial; 1=Serial1; 2=Serial2; 3=Serial3;)
 int ReceiveUartMessage(uint8_t* payloadReceived, int num) {
@@ -58,30 +90,47 @@ int ReceiveUartMessage(uint8_t* payloadReceived, int num) {
 	bool messageRead = false;
 	uint8_t messageReceived[256];
 	int lenPayload = 0;
-	HardwareSerial* serial;
-	
+	// HardwareSerial* serial;
 
-	switch (num) {
-		case 0:
-			serial = serialPort1;
-			break;
-		case 1:
-			serial = serialPort2;
-			break;
-		case 2:
-			serial = serialPort3;
-			break;
-		case 3:
-			serial = serialPort4;
-			break;
-		default:
-			break;
 
-	}
+	// switch (num) {
+	// 	case 0:
+	// 		serial = serialPort1;
+	// 		break;
+	// 	case 1:
+	// 		serial = serialPort2;
+	// 		break;
+	// 	case 2:
+	// 		serial = serialPort3;
+	// 		break;
+	// 	case 3:
+	// 		serial = serialPort4;
+	// 		break;
+	// 	default:
+	// 		break;
 
-	while (serial->available()) {
+	// }
 
-		messageReceived[counter++] = serial->read();
+  // Timeout value in milliseconds to wait for data being read.
+  // size_t ms_timeout = 250;
+  size_t ms_timeout = 0;
+
+  // Char variable to store data coming from the serial port.
+  char data_byte;
+
+  // Wait for data to be available at the serial port.
+	while (serial_port.IsDataAvailable()) {
+
+    // Read one byte from the serial port.
+    try {
+        // Read a single byte of data from the serial port.
+        serial_port.ReadByte(data_byte, ms_timeout);
+    } catch (ReadTimeout) {
+        std::cerr << "\nThe ReadByte() call has timed out." << std::endl;
+    }
+
+    // Read one byte from the serial port.
+		messageReceived[counter++] = data_byte;
 
 		if (counter == 2) {//case if state of 'counter' with last read 1
 
@@ -106,9 +155,7 @@ int ReceiveUartMessage(uint8_t* payloadReceived, int num) {
 
 		if (counter == endMessage && messageReceived[endMessage - 1] == 3) {//+1: Because of counter++ state of 'counter' with last read = "endMessage"
 			messageReceived[endMessage] = 0;
-			if (debugSerialPort != NULL) {
-				debugSerialPort->println("End of message reached!");
-			}
+      printf("End of message reached!\n");
 			messageRead = true;
 			break; //Exit if end of message is reached, even if there is still more data in buffer.
 		}
@@ -134,23 +181,17 @@ bool UnpackPayload(uint8_t* message, int lenMes, uint8_t* payload, int lenPay) {
 	crcMessage = message[lenMes - 3] << 8;
 	crcMessage &= 0xFF00;
 	crcMessage += message[lenMes - 2];
-if(debugSerialPort!=NULL){
-	debugSerialPort->print("SRC received: "); debugSerialPort->println(crcMessage);
-} // DEBUG
+	printf("SRC received: %02x ", crcMessage);
 
 	//Extract payload:
 	memcpy(payload, &message[2], message[1]);
 
 	crcPayload = crc16(payload, message[1]);
-if(debugSerialPort!=NULL){
-	debugSerialPort->print("SRC calc: "); debugSerialPort->println(crcPayload);
-}
+	printf("SRC calc: %02x ", crcPayload);
 	if (crcPayload == crcMessage)
 	{
-if(debugSerialPort!=NULL){
-		debugSerialPort->print("Received: "); SerialPrint(message, lenMes); debugSerialPort->println();
-		debugSerialPort->print("Payload :      "); SerialPrint(payload, message[1] - 1); debugSerialPort->println();
-} // DEBUG
+		printf("Received: "); SerialPrint(message, lenMes); printf("\n");
+		printf("Payload :      "); SerialPrint(payload, message[1] - 1); printf("\n");
 
 		return true;
 	}
@@ -187,33 +228,41 @@ int PackSendPayload(uint8_t* payload, int lenPay, int num) {
 	messageSend[count++] = 3;
 	messageSend[count] = NULL;
 
-if(debugSerialPort!=NULL){
-	debugSerialPort->print("UART package send: "); SerialPrint(messageSend, count);
+	printf("UART package send: "); SerialPrint(messageSend, count);
 
-} // DEBUG
+	// HardwareSerial *serial;
 
-
-	HardwareSerial *serial;
-
-	switch (num) {
-		case 0:
-			serial=serialPort1;
-			break;
-		case 1:
-			serial=serialPort2;
-			break;
-		case 2:
-			serial=serialPort3;
-			break;
-		case 3:
-			serial=serialPort4;
-			break;
-		default:
-			break;
-	}
+	// switch (num) {
+	// 	case 0:
+	// 		serial=serialPort1;
+	// 		break;
+	// 	case 1:
+	// 		serial=serialPort2;
+	// 		break;
+	// 	case 2:
+	// 		serial=serialPort3;
+	// 		break;
+	// 	case 3:
+	// 		serial=serialPort4;
+	// 		break;
+	// 	default:
+	// 		break;
+	// }
 
 	//Sending package
-	serial->write(messageSend, count);
+	// serial->write(messageSend, count);
+
+  DataBuffer write_buffer;
+  for(int i = 0; i < count; ++i) {
+    // write_buffer[i] = messageSend[i];
+    write_buffer.push_back(messageSend[i]);
+  }
+
+  // Write the data to the serial port.
+  serial_port.Write(write_buffer);
+
+  // Wait until the data has actually been transmitted.
+  serial_port.DrainWriteBuffer();
 
 
 	//Returns number of send bytes
@@ -262,7 +311,7 @@ bool VescUartGetValue(bldcMeasure& values, int num) {
 	uint8_t command[1] = { COMM_GET_VALUES };
 	uint8_t payload[256];
 	PackSendPayload(command, 1, num);
-	delay(10); //needed, otherwise data is not read
+	usleep(10); //needed, otherwise data is not read
 	int lenPayload = ReceiveUartMessage(payload, num);
 	if (lenPayload > 1) {
 		bool read = ProcessReadPacket(payload, values, lenPayload); //returns true if sucessful
@@ -297,8 +346,22 @@ void VescUartSetPosition(float position, int num) {
 	buffer_append_int32(payload, (int32_t)(position * 1000000.0), &index);
 	PackSendPayload(payload, 5, num);
 }
+
 void VescUartSetPosition(float position) {
 	VescUartSetPosition(position, 0);
+}
+
+void VescUartSetServoPosition(float position, int num) {
+	int32_t index = 0;
+	uint8_t payload[5];
+
+	payload[index++] = COMM_SET_SERVO_POS ;
+	buffer_append_int32(payload, (int32_t)(position * 1000), &index);
+	PackSendPayload(payload, 5, num);
+}
+
+void VescUartSetServoPosition(float position) {
+  VescUartSetServoPosition(position, 0);
 }
 
 void VescUartSetDuty(float duty, int num) {
@@ -355,11 +418,9 @@ void VescUartSetNunchukValues(remotePackage& data, int num) {
 	payload[ind++] = 0;
 	payload[ind++] = 0;
 
-if(debugSerialPort!=NULL){
-	debugSerialPort->println("Data reached at VescUartSetNunchuckValues:");
-	debugSerialPort->print("valXJoy = "); debugSerialPort->print(data.valXJoy); debugSerialPort->print(" valYJoy = "); debugSerialPort->println(data.valYJoy);
-	debugSerialPort->print("LowerButton = "); debugSerialPort->print(data.valLowerButton); debugSerialPort->print(" UpperButton = "); debugSerialPort->println(data.valUpperButton);
-}
+	printf("Data reached at VescUartSetNunchuckValues:\n");
+	printf("valXJoy = %d valYJoy = %d\n", data.valXJoy, data.valYJoy);
+	printf("LowerButton = %d UpperButton = %d\n", data.valLowerButton, data.valUpperButton);
 
 	PackSendPayload(payload, 11, num);
 }
@@ -374,28 +435,25 @@ void SerialPrint(uint8_t* data, int len) {
 
 	for (int i = 0; i <= len; i++)
 	{
-		debugSerialPort->print(data[i]);
-		debugSerialPort->print(" ");
+		printf("%02x ", data[i]);
 	}
-	debugSerialPort->println("");
+	printf("\n");
 }
 
 
 void SerialPrint(const struct bldcMeasure& values) {
-	debugSerialPort->print("tempFetFiltered:	"); debugSerialPort->println(values.tempFetFiltered);
-	debugSerialPort->print("tempMotorFiltered:"); debugSerialPort->println(values.tempMotorFiltered);
-	debugSerialPort->print("avgMotorCurrent:	"); debugSerialPort->println(values.avgMotorCurrent);
-	debugSerialPort->print("avgInputCurrent:	"); debugSerialPort->println(values.avgInputCurrent);
-	debugSerialPort->print("avgId:			"); debugSerialPort->println(values.avgId);
-	debugSerialPort->print("avgIq:			"); debugSerialPort->println(values.avgIq);
-	debugSerialPort->print("dutyNow:			"); debugSerialPort->println(values.dutyNow);
-	debugSerialPort->print("rpm:				"); debugSerialPort->println(values.rpm);
-	debugSerialPort->print("inpVoltage:		"); debugSerialPort->println(values.inpVoltage);
-	debugSerialPort->print("ampHours:		"); debugSerialPort->println(values.ampHours);
-	debugSerialPort->print("ampHoursCharged:	"); debugSerialPort->println(values.ampHoursCharged);
-	debugSerialPort->print("tachometer:		"); debugSerialPort->println(values.tachometer);
-	debugSerialPort->print("tachometerAbs:	"); debugSerialPort->println(values.tachometerAbs);
-	debugSerialPort->print("faultCode:		"); debugSerialPort->println(values.faultCode);
-
-	
+	printf("tempFetFiltered:	%f\n", values.tempFetFiltered);
+	printf("tempMotorFiltered:%f\n", values.tempMotorFiltered);
+	printf("avgMotorCurrent:	%f\n", values.avgMotorCurrent);
+	printf("avgInputCurrent:	%f\n", values.avgInputCurrent);
+	printf("avgId:			%f\n", values.avgId);
+	printf("avgIq:			%f\n", values.avgIq);
+	printf("dutyNow:			%f\n", values.dutyNow);
+	printf("rpm:				%ld\n", values.rpm);
+	printf("inpVoltage:		%f\n", values.inpVoltage);
+	printf("ampHours:		%f\n", values.ampHours);
+	printf("ampHoursCharged:	%f\n", values.ampHoursCharged);
+	printf("tachometer:		%ld\n", values.tachometer);
+	printf("tachometerAbs:	%ld\n", values.tachometerAbs);
+	printf("faultCode:		%d\n", values.faultCode);
 }
